@@ -173,6 +173,8 @@ class GithubTextCrawler(object):
 
     def add_commits_to_text_data(self, last_commit_sha=None):
         last_commit_index = len(self.commit_logs)
+
+        # Check last_commit_sha is in commit logs
         if last_commit_sha:
             for i, commit in enumerate(self.commit_logs):
                 if commit['sha'] == last_commit_sha:
@@ -180,12 +182,20 @@ class GithubTextCrawler(object):
                     break
             if last_commit_index == len(self.commit_logs):
                 raise CommitNotFoundError('Commit {} not found in commit logs.'.format(last_commit_sha))
+
+        # Add commit logs after last_commit_sha
         for commit_index in reversed(range(last_commit_index)):
             commit = self.commit_logs[commit_index]
+
+            # Get the filenames changed by this commit
             filenames = [file['filename'] for file in commit['files']]
+
+            # Get the directory names of these changed files, no duplicate
             dirnames = set()
             for filename in filenames:
                 dirnames.add(os.path.dirname(filename))
+
+            # For each directory containing changed files, append commit logs
             for dirname in dirnames:
                 if dirname == '':
                     dirs = []
