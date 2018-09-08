@@ -22,6 +22,8 @@ def main(owner, repo, token, commit_logs_file, text_data_file):
     gtc = GithubTextCrawler(owner, repo, token, commit_logs, text_data)
     gtc.get_commit_logs()
     gtc.save_commit_logs()
+    gtc.get_text_data()
+    gtc.save_text_data()
 
 
 if __name__ == '__main__':

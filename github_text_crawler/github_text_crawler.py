@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import json
+import os
 import time
+import base64
 import requests
 
 
@@ -136,3 +138,95 @@ class GithubTextCrawler(object):
             filename = '{}_{}_commit_logs.json'.format(self.owner, self.repo)
         with open(filename, 'w+') as f:
             json.dump(self.commit_logs, f, indent=4)
+
+    def get_text_data(self):
+        if len(self.commit_logs) == 0:
+            raise CommitNotFoundError('Commit logs empty. Please run get_commit_logs() first.')
+        if 'last_commit_sha' in self.text_data:
+            last_commit_sha = self.text_data['last_commit_sha']
+            self.add_commits_to_text_data(last_commit_sha)
+        else:
+            tree_sha = self.commit_logs[0]['commit']['tree']['sha']
+            self.text_data = self.get_trees(tree_sha)
+            self.add_commits_to_text_data()
+            self.add_docs_to_text_data()
+        self.text_data['last_commit_sha'] = self.commit_logs[0]['sha']
+
+    def get_tree(self, tree_sha):
+        tree = self.get_api_json('/repos/{}/{}/git/trees/{}'.format(self.owner, self.repo, tree_sha))
+        # Remove non-text files
+        tree['tree'] = list(
+            filter(lambda item: item['type'] == 'tree' or item['type'] == 'blob' and self.is_doc(item['path']), tree['tree']))
+        tree.update({'commits': [], 'docs': []})
+        return tree
+
+    def get_trees(self, tree_sha):
+        trees = self.get_tree(tree_sha)
+        for path in trees['tree']:
+            if path['type'] == 'tree':
+                path.update(self.get_trees(path['sha']))
+        return trees
+
+    def add_commits_to_text_data(self, last_commit_sha=None):
+        last_commit_index = len(self.commit_logs)
+        if last_commit_sha:
+            for i, commit in enumerate(self.commit_logs):
+                if commit['sha'] == last_commit_sha:
+                    last_commit_index = i
+                    break
+            if last_commit_index == len(self.commit_logs):
+                raise CommitNotFoundError('Commit {} not found in commit logs.'.format(last_commit_sha))
+        for commit_index in reversed(range(last_commit_index)):
+            commit = self.commit_logs[commit_index]
+            filenames = [file['filename'] for file in commit['files']]
+            dirnames = set()
+            for filename in filenames:
+                dirnames.add(os.path.dirname(filename))
+            for dirname in dirnames:
+                if dirname == '':
+                    dirs = []
+                else:
+                    dirs = dirname.split('/')
+                target_tree = self.text_data
+                try:
+                    for dir in dirs:
+                        target_tree = [tree for tree in target_tree['tree'] if tree['path'] == dir]
+                        if len(target_tree) != 1:
+                            raise KeyError
+                        target_tree = target_tree[0]
+                    target_tree['commits'].append({'sha': commit['sha'], 'message': commit['commit']['message']})
+                except KeyError:
+                    pass
+
+    def add_docs_to_text_data(self):
+        self.add_docs_to_trees(self.text_data)
+
+    def add_docs_to_trees(self, tree):
+        if 'tree' not in tree:
+            return
+        docs = list(
+            filter(lambda item: item['type'] == 'blob' and self.is_doc(item['path']), tree['tree']))
+        docs = [self.update_doc_content(doc) for doc in docs]
+        tree['docs'] = docs
+        for item in tree['tree']:
+            if item['type'] == 'tree':
+                self.add_docs_to_trees(item)
+
+    @staticmethod
+    def is_doc(filename):
+        filename = filename.lower()
+        return filename.endswith('.md') or filename.endswith('.rst')
+
+    def update_doc_content(self, doc):
+        doc = {'filename': doc['path'], 'sha': doc['sha'], 'content': self.get_doc_content(doc['sha'])}
+        return doc
+
+    def get_doc_content(self, blob_sha):
+        content = self.get_api_json('/repos/{}/{}/git/blobs/{}'.format(self.owner, self.repo, blob_sha))['content']
+        return base64.b64decode(content).decode('utf-8')
+
+    def save_text_data(self, filename=None):
+        if not filename:
+            filename = '{}_{}_text_data.json'.format(self.owner, self.repo)
+        with open(filename, 'w+') as f:
+            json.dump(self.text_data, f, indent=4)
