@@ -99,6 +99,7 @@ class GithubTextCrawler(object):
                         break
             self.commit_logs = commit_logs
 
-    def save_commit_logs(self, filename):
+    def save_commit_logs(self, filename=None):
+        filename = filename if filename else '{}_{}_commit_logs.json'.format(self.owner, self.repo)
         with open(filename, 'w+') as f:
             json.dump(self.commit_logs, f, indent=4)
