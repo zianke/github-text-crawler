@@ -34,7 +34,8 @@ class GithubTextCrawler(object):
         else:
             self.headers = None
         self.commit_logs = commit_logs if commit_logs else []
-        self.text_data = text_data if text_data else {}
+        # self.text_data = text_data if text_data else {}
+        self.text_data = {} # TODO: Use snapshot of text_data
         if not self.check_repo_existence():
             raise RepoNotFoundError('Repo {}/{} is invalid.'.format(self.owner, self.repo))
 
@@ -145,7 +146,7 @@ class GithubTextCrawler(object):
         if 'last_commit_sha' in self.text_data:
             last_commit_sha = self.text_data['last_commit_sha']
             self.add_commits_to_text_data(last_commit_sha)
-            self.add_docs_to_text_data()  # TODO: only update changes after last_commit_sha
+            self.add_docs_to_text_data()  # TODO: Only update changes after last_commit_sha
         else:
             tree_sha = self.commit_logs[0]['commit']['tree']['sha']
             self.text_data = self.get_trees(tree_sha)
