@@ -20,10 +20,12 @@ python -m github-text-crawler [owner] [repo]
 
 * Use GitHub API personal access token (maximum number of requests is 5000 per hour).
 ```
-python -m github-text-crawler [owner] [repo] --token=[token] --commit_logs_file=ApolloAuto_apollo_commit_logs.json
+python -m github-text-crawler [owner] [repo] --token=[token]
 ```
 
-* Use GitHub API personal access token (maximum number of requests is 5000 per hour).
+* Use snapshot of commit logs.
 ```
-python -m github-text-crawler [owner] [repo] --token=[token] --commit_logs_file=ApolloAuto_apollo_commit_logs.json
+python -m github-text-crawler [owner] [repo] --token=[token] --commit_logs_file=[commit_logs_file]
 ```
+
+After running these commands, a commit logs file and a text data file will be generated, both in json format. The commit logs file can later be used as snapshot to reduce running time.
