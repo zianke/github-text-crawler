@@ -145,18 +145,21 @@ class GithubTextCrawler(object):
         if 'last_commit_sha' in self.text_data:
             last_commit_sha = self.text_data['last_commit_sha']
             self.add_commits_to_text_data(last_commit_sha)
+            self.add_docs_to_text_data()  # TODO: only update changes after last_commit_sha
         else:
             tree_sha = self.commit_logs[0]['commit']['tree']['sha']
             self.text_data = self.get_trees(tree_sha)
             self.add_commits_to_text_data()
             self.add_docs_to_text_data()
+        self.remove_blobs_from_trees(self.text_data)
         self.text_data['last_commit_sha'] = self.commit_logs[0]['sha']
 
     def get_tree(self, tree_sha):
         tree = self.get_api_json('/repos/{}/{}/git/trees/{}'.format(self.owner, self.repo, tree_sha))
         # Remove non-text files
         tree['tree'] = list(
-            filter(lambda item: item['type'] == 'tree' or item['type'] == 'blob' and self.is_doc(item['path']), tree['tree']))
+            filter(lambda item: item['type'] == 'tree' or item['type'] == 'blob' and self.is_doc(item['path']),
+                   tree['tree']))
         tree.update({'commits': [], 'docs': []})
         return tree
 
@@ -218,12 +221,26 @@ class GithubTextCrawler(object):
         return filename.endswith('.md') or filename.endswith('.rst')
 
     def update_doc_content(self, doc):
+        print(doc['path'])
         doc = {'filename': doc['path'], 'sha': doc['sha'], 'content': self.get_doc_content(doc['sha'])}
         return doc
 
     def get_doc_content(self, blob_sha):
         content = self.get_api_json('/repos/{}/{}/git/blobs/{}'.format(self.owner, self.repo, blob_sha))['content']
         return base64.b64decode(content).decode('utf-8')
+
+    def remove_blobs_from_trees(self, tree):
+        if 'tree' not in tree:
+            return
+        tree['tree'] = list(
+            filter(lambda item: item['type'] == 'tree', tree['tree']))
+
+        # Remove unused keys
+        for key in ['mode', 'type', 'url', 'truncated']:
+            tree.pop(key, None)
+
+        for item in tree['tree']:
+            self.remove_blobs_from_trees(item)
 
     def save_text_data(self, filename=None):
         if not filename:
