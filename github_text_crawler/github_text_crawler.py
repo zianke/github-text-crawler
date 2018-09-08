@@ -34,5 +34,6 @@ class GithubTextCrawler(object):
                 headers = {'Authorization': 'token {}'.format(self.token)}
             r = requests.get(url, headers=headers)
             if r.status_code == 200:
+                print(r.headers)
                 return True
         return False
