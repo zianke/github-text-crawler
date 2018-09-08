@@ -11,6 +11,11 @@ class RepoNotFoundError(Exception):
     pass
 
 
+class CommitNotFoundError(Exception):
+    """Custom exception when repo is missing."""
+    pass
+
+
 class GithubTextCrawler(object):
     def __init__(self,
                  owner='',
@@ -63,6 +68,11 @@ class GithubTextCrawler(object):
             last_commit_sha = self.commit_logs[0]['sha']
             last_commit_date = self.commit_logs[0]['commit']['committer']['date']
 
+            # Check last_commit_sha existence
+            if not self.check_commit_existence(last_commit_sha):
+                raise CommitNotFoundError(
+                    'Commit {} not found in repo {}/{}.'.format(last_commit_sha, self.owner, self.repo))
+
             # Get first 100 commit logs since last_commit_date
             commit_logs = list(self.get_api_json(
                 '/repos/{}/{}/commits?per_page=100&since={}'.format(self.owner, self.repo, last_commit_date)))
@@ -77,11 +87,18 @@ class GithubTextCrawler(object):
                     if len(new_commit_logs) < 99:
                         break
 
-            # Find index of last_commit_sha and prepend commit logs before this index
+            # Find index of last_commit_sha
             last_commit_index = len(commit_logs) - 1
             while commit_logs[last_commit_index]['sha'] != last_commit_sha:
                 last_commit_index -= 1
                 assert last_commit_index >= 0
+
+            # Discard commit logs before last_commit_sha
+            commit_logs = commit_logs[:last_commit_index]
+
+            # Convert commit_logs to full version
+            commit_logs = [self.get_full_commit_log(commit_log) for commit_log in commit_logs]
+
             self.commit_logs = commit_logs[:last_commit_index] + self.commit_logs
         else:
             # Get first 100 commit logs
@@ -97,7 +114,22 @@ class GithubTextCrawler(object):
                     print(len(commit_logs))
                     if len(new_commit_logs) < 99:
                         break
+
+            # Convert commit_logs to full version
+            commit_logs = [self.get_full_commit_log(commit_log) for commit_log in commit_logs]
+
             self.commit_logs = commit_logs
+
+    def get_full_commit_log(self, commit_log):
+        print(commit_log['sha'])
+        return self.get_api_json('/repos/{}/{}/commits/{}'.format(self.owner, self.repo, commit_log['sha']))
+
+    def check_commit_existence(self, commit_sha):
+        r = self.get_api_response('/repos/{}/{}/commits/{}'.format(self.owner, self.repo, commit_sha))
+        if r.status_code == 200:
+            return True
+        else:
+            return False
 
     def save_commit_logs(self, filename=None):
         filename = filename if filename else '{}_{}_commit_logs.json'.format(self.owner, self.repo)
