@@ -20,6 +20,9 @@ def main(owner, repo, token, commit_logs_file, text_data_file):
     if text_data_file:
         text_data = json.load(open(text_data_file))
     gtc = GithubTextCrawler(owner, repo, token, commit_logs, text_data)
+    for i in range(50):
+        gtc.get_api_json('/repos/ApolloAuto/apollo')
+    gtc.save_commit_logs('commit_log.json')
 
 
 if __name__ == '__main__':
