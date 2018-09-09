@@ -14,7 +14,7 @@ class RepoNotFoundError(Exception):
 
 
 class CommitNotFoundError(Exception):
-    """Custom exception when repo is missing."""
+    """Custom exception when commit is missing."""
     pass
 
 
