@@ -19,5 +19,5 @@ setup(
                       'click==6.7',
                       'idna==2.7',
                       'requests==2.19.1',
-                      'urllib3==1.23'],
+                      'urllib3==1.24.2'],
 )
