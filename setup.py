@@ -14,7 +14,7 @@ setup(
     packages=['github-text-crawler'],
     include_package_data=True,
     zip_safe=False,
-    install_requires=['certifi==2018.8.24',
+    install_requires=['certifi==2022.12.7',
                       'chardet==3.0.4',
                       'click==6.7',
                       'idna==2.7',
